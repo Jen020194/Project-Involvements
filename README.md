@@ -1,1 +1,1 @@
-# Project-Involvements---> **All the Projects & Task are stored in "master" branch. Please check the same.**
+# Project-Involvements---> **All projects and tasks are consolidated into the "master" branch. Please proceed to review them accordingly.**
