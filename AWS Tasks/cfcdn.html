@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Introduction to AWS CloudFront</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        header {
+            background-color: #1a73e8;
+            color: white;
+            padding: 10px 0;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+        }
+        main {
+            padding: 20px;
+        }
+        section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        footer {
+            text-align: center;
+            padding: 10px;
+            background-color: #1a73e8;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>AWS CloudFront: Content Delivery Made Easy</h1>
+    </header>
+
+    <main>
+        <section>
+            <h2>What is AWS CloudFront?</h2>
+            <p>
+                AWS CloudFront is a fast content delivery network (CDN) service that securely delivers data, videos, applications, and APIs to users globally with low latency and high transfer speeds. CloudFront is integrated with AWS services like S3, EC2, and Lambda, making it easy to distribute both static and dynamic content.
+            </p>
+        </section>
+
+        <section>
+            <h2>How Does CloudFront Work?</h2>
+            <p>
+                CloudFront works by caching copies of your content in globally distributed edge locations. When a user requests content, CloudFront delivers it from the nearest edge location, which reduces latency. If the content is not cached in an edge location, CloudFront retrieves it from the origin (e.g., S3 bucket, EC2 instance, or HTTP server).
+            </p>
+        </section>
+
+        <section>
+            <h2>Benefits of AWS CloudFront</h2>
+            <ul>
+                <li><strong>Low Latency & High Speed:</strong> Delivers content quickly to users around the globe by serving it from edge locations close to them.</li>
+                <li><strong>Scalability:</strong> Automatically scales to handle the traffic demands, whether it's a small site or a large-scale application.</li>
+                <li><strong>Security:</strong> Built-in security features like encryption (SSL/TLS), DDoS protection, and AWS Shield integration.</li>
+                <li><strong>Cost-Effective:</strong> Pay-as-you-go pricing with no upfront fees, making it affordable for businesses of all sizes.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Common Use Cases</h2>
+            <ul>
+                <li>Serving static and dynamic website content</li>
+                <li>Streaming video and audio</li>
+                <li>Distributing software, patches, and updates</li>
+                <li>Delivering APIs globally</li>
+                <li>Protecting web applications with AWS WAF</li>
+            </ul>
+        </section>
+    </main>
+
+    <footer>
+        <p>Powered by AWS CloudFront | © 2024</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,212 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation template for creating a VPC with public and
+  private subnets, NAT Gateway, and EC2 instances.
+
+Resources:
+  # VPC
+  CFTVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: CFTVPC
+
+  # Public Subnet
+  CFTPubSN:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CFTVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: CFTPubSN
+
+  # Private Subnet
+  CFTPvtSN:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CFTVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: CFTPvtSN
+
+  # Internet Gateway
+  CFTIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CFTIGW
+
+  # Attach Internet Gateway to VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref CFTVPC
+      InternetGatewayId: !Ref CFTIGW
+
+  # Public Route Table
+  CFTPubRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CFTVPC
+      Tags:
+        - Key: Name
+          Value: CFTPubRT
+
+  # Route to Internet in Public Route Table
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref CFTPubRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref CFTIGW
+
+  # Associate Public Route Table with Public Subnet
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref CFTPubSN
+      RouteTableId: !Ref CFTPubRT
+
+  # Private Route Table
+  CFTPvtRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CFTVPC
+      Tags:
+        - Key: Name
+          Value: CFTPvtRT
+
+  # NAT Gateway Elastic IP
+  NatEIP:
+    Type: AWS::EC2::EIP
+    Properties: {}
+
+  # NAT Gateway
+  CFTNAT:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref CFTPubSN
+      Tags:
+        - Key: Name
+          Value: CFTNAT
+
+  # Route for Private Route Table to use NAT Gateway
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref CFTPvtRT
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref CFTNAT
+
+  # Associate Private Route Table with Private Subnet
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref CFTPvtSN
+      RouteTableId: !Ref CFTPvtRT
+
+  # Security Group for Public EC2
+  CFTPubSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH and HTTP traffic to the public instance
+      VpcId: !Ref CFTVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0 # SSH access
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0 # HTTP access
+      Tags:
+        - Key: Name
+          Value: CFTPubSG
+
+  # Security Group for Private EC2
+  CFTPvtSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH access to the private instance from public instance
+      VpcId: !Ref CFTVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref CFTPubSG # Allow SSH from public instance
+      Tags:
+        - Key: Name
+          Value: CFTPvtSG
+
+  # EC2 Instance in Public Subnet
+  WebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro # Change instance type as needed
+      KeyName: T15 # Replace with your key pair name
+      ImageId: ami-047126e50991d067b # Replace with a valid AMI ID for your region
+      SubnetId: !Ref CFTPubSN
+      SecurityGroupIds:
+        - !Ref CFTPubSG
+      Tags:
+        - Key: Name
+          Value: WebServer
+
+  # EC2 Instance in Private Subnet
+  AppServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro # Change instance type as needed
+      KeyName: T15 # Replace with your key pair name
+      ImageId: ami-047126e50991d067b # Replace with a valid AMI ID for your region
+      SubnetId: !Ref CFTPvtSN
+      SecurityGroupIds:
+        - !Ref CFTPvtSG
+      Tags:
+        - Key: Name
+          Value: AppServer
+
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref CFTVPC
+
+  PublicSubnet1Id:
+    Description: Public Subnet ID
+    Value: !Ref CFTPubSN
+
+  PrivateSubnet1Id:
+    Description: Private Subnet ID
+    Value: !Ref CFTPvtSN
+
+  InternetGatewayId:
+    Description: Internet Gateway ID
+    Value: !Ref CFTIGW
+
+  NatGatewayId:
+    Description: NAT Gateway ID
+    Value: !Ref CFTNAT
+
+  PublicEC2InstanceId:
+    Description: Public EC2 Instance ID
+    Value: !Ref WebServer
+
+  PrivateEC2InstanceId:
+    Description: Private EC2 Instance ID
+    Value: !Ref AppServer

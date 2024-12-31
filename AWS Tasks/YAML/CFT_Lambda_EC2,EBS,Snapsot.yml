@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AWS Setup for EC2 Instance, EBS Volume, Snapshot, CloudWatch Alarm, SNS, and Lambda Automation"
+
+Resources:
+  # EC2 Instance
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0abcdef1234567890 # Replace with your AMI ID
+      KeyName: MyKeyPair
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 8
+
+  # EBS Volume
+  MyEBSVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: !GetAtt MyEC2Instance.AvailabilityZone
+      Size: 10
+
+  # Attach EBS Volume to EC2
+  VolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !Ref MyEC2Instance
+      VolumeId: !Ref MyEBSVolume
+      Device: /dev/xvdf
+
+  # Snapshot of EBS Volume
+  MyEBSSnapshot:
+    Type: AWS::EC2::Snapshot
+    Properties:
+      VolumeId: !Ref MyEBSVolume
+
+  # CloudWatch Alarm for CPU Utilization
+  MyCloudWatchAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: LowCPUUtilizationAlarm
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref MyEC2Instance
+      AlarmActions:
+        - !Ref MySNSTopic
+
+  # SNS Topic
+  MySNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: "your-email@example.com" # Replace with your email
+          Protocol: email
+
+  # Lambda Function
+  MyLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Runtime: python3.9
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          def lambda_handler(event, context):
+              ec2 = boto3.client('ec2')
+              sns = boto3.client('sns')
+              
+              # Replace with your resource IDs
+              instance_id = "i-0123456789abcdef"
+              volume_id = "vol-0123456789abcdef"
+              snapshot_id = "snap-0123456789abcdef"
+              sns_topic_arn = "arn:aws:sns:region:account-id:MySNSTopic"
+              
+              # Terminate EC2 Instance
+              ec2.terminate_instances(InstanceIds=[instance_id])
+              waiter = ec2.get_waiter('instance_terminated')
+              waiter.wait(InstanceIds=[instance_id])
+              
+              # Detach and Delete Volume
+              ec2.detach_volume(VolumeId=volume_id)
+              ec2.delete_volume(VolumeId=volume_id)
+              
+              # Delete Snapshot
+              ec2.delete_snapshot(SnapshotId=snapshot_id)
+              
+              # Send Final SNS Notification
+              sns.publish(
+                  TopicArn=sns_topic_arn,
+                  Message="All your Setup has destroyed using lambda.",
+                  Subject="Cleanup Complete"
+              )
+
+  # Lambda Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaPermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:*
+                  - sns:Publish
+                Resource: "*"
+
+  # Lambda Permission for SNS
+  MyLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MyLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref MySNSTopic
+
+  # SNS Subscription for Lambda
+  MyLambdaSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt MyLambdaFunction.Arn
+      Protocol: lambda
+      TopicArn: !Ref MySNSTopic
